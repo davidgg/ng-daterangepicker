@@ -62,7 +62,7 @@
 
   .calendar
     +unselectable
-    width: 500px
+    width: auto
     border: 1px solid $blue
     border-radius: 7px
     background: $white
@@ -71,6 +71,9 @@
     left: 0
     z-index: 100
     display: none
+
+    &.with-predefined-ranges
+      width: 500px
 
     &:after
       content: ''
@@ -94,12 +97,14 @@
       &:after
         left: 215px
 
+    &.with-predefined-ranges .calendar-container
+      border-right: 1px solid $border-light
+
     .calendar-container
       display: inline-block
       width: 340px
       height: 100%
       padding: 20px
-      border-right: 1px solid $border-light
       float: left
 
       .controls
@@ -148,6 +153,10 @@
           margin-bottom: 15px
           cursor: pointer
           font-weight: bold
+
+          &.is-available-day
+            color: $text
+
 
           &.is-within-range
             background: $blue-light

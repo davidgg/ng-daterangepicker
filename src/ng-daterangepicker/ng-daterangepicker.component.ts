@@ -3,8 +3,28 @@ import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
 import * as dateFns from 'date-fns';
 
 export interface NgDateRangePickerOptions {
-  theme: 'default' | 'green' | 'teal' | 'cyan' | 'grape' | 'red' | 'gray';
-  range: 'tm' | 'lm' | 'lw' | 'tw' | 'ty' | 'ly';
+  theme?: 'default' | 'green' | 'teal' | 'cyan' | 'grape' | 'red' | 'gray';
+  range?: 'tm' | 'lm' | 'lw' | 'tw' | 'ty' | 'ly';
+  inline?: boolean;
+  dayNames?: string[];
+  monthNames?: string[];
+  showPredefinedRanges?: boolean;
+  untilDate?: Date;
+  sinceDate?: Date;
+}
+
+const defaultOptions = {
+  theme: 'default',
+  range: 'tm',
+  inline: false,
+  dayNames: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  monthNames: [
+    "January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December"
+  ],
+  showPredefinedRanges: true,
+  untilDate: null,
+  sinceDate: null
 }
 
 export interface IDay {
@@ -14,6 +34,7 @@ export interface IDay {
   today: boolean;
   firstMonthDay: boolean;
   lastMonthDay: boolean;
+  availableDay: boolean;
   visible: boolean;
   from: boolean;
   to: boolean;
@@ -30,7 +51,7 @@ export let DATERANGEPICKER_VALUE_ACCESSOR: any = {
   selector: 'ng-daterangepicker',
   templateUrl: 'ng-daterangepicker.component.html',
   styleUrls: ['ng-daterangepicker.sass'],
-  providers: [ DATERANGEPICKER_VALUE_ACCESSOR ]
+  providers: [DATERANGEPICKER_VALUE_ACCESSOR]
 })
 export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit {
   @Input() options: NgDateRangePickerOptions;
@@ -40,7 +61,6 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
   date: Date;
   dateFrom: Date;
   dateTo: Date;
-  dayNames: string[];
   days: IDay[];
   range: 'tm' | 'lm' | 'lw' | 'tw' | 'ty' | 'ly';
 
@@ -73,19 +93,14 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
   }
 
   ngOnInit() {
-    this.opened = false;
     this.date = dateFns.startOfDay(new Date());
-    this.options = this.options || { theme: 'default', range: 'tm' };
-    this.initNames();
+    this.options = Object.assign({}, defaultOptions, this.options);
+    this.opened = this.options.inline ? 'from' : false;
     this.selectRange(this.options.range);
   }
 
-  ngOnChanges(changes: {[propName: string]: SimpleChange}) {
-    this.options = this.options || { theme: 'default', range: 'tm' };
-  }
-
-  initNames(): void {
-    this.dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  ngOnChanges(changes: { [propName: string]: SimpleChange }) {
+    this.options = Object.assign({}, defaultOptions, this.options);
   }
 
   generateCalendar(): void {
@@ -101,6 +116,7 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
         today: dateFns.isToday(d),
         firstMonthDay: dateFns.isFirstDayOfMonth(d),
         lastMonthDay: dateFns.isLastDayOfMonth(d),
+        availableDay: this.isAvailableday(d),
         visible: true,
         from: dateFns.isSameDay(this.dateFrom, d),
         to: dateFns.isSameDay(this.dateTo, d),
@@ -119,6 +135,7 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
           weekday: dateFns.getDay(d),
           firstMonthDay: dateFns.isFirstDayOfMonth(d),
           lastMonthDay: dateFns.isLastDayOfMonth(d),
+          availableDay: this.isAvailableday(d),
           today: false,
           visible: false,
           from: false,
@@ -147,8 +164,10 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
   selectDate(e: MouseEvent, index: number): void {
     e.preventDefault();
     let selectedDate: Date = this.days[index].date;
+    if(!this.days[index].availableDay) return;
+
     if ((this.opened === 'from' && dateFns.isAfter(selectedDate, this.dateTo)) ||
-        (this.opened === 'to' && dateFns.isBefore(selectedDate, this.dateFrom))) {
+      (this.opened === 'to' && dateFns.isBefore(selectedDate, this.dateFrom))) {
       return;
     }
 
@@ -210,10 +229,28 @@ export class NgDateRangePickerComponent implements ControlValueAccessor, OnInit 
     this.generateCalendar();
   }
 
+  isAvailableday(day: Date) {
+    let validSinceDate = true;
+    if (this.options.sinceDate){
+      validSinceDate = dateFns.isEqual(day, this.options.sinceDate) || dateFns.isAfter(day, this.options.sinceDate);
+    }
+
+    let validUntilDate = true;
+    if (this.options.untilDate) {
+      validUntilDate = dateFns.isEqual(day, this.options.untilDate) || dateFns.isBefore(day, this.options.untilDate);
+    }
+
+    return validSinceDate && validUntilDate;
+  }
+
+  getMonthName(monthNumber: number){
+    return this.options.monthNames[monthNumber - 1];
+  }
+
   @HostListener('document:click', ['$event'])
   handleBlurClick(e: MouseEvent) {
     let target = e.srcElement || e.target;
-    if (!this.elementRef.nativeElement.contains(e.target) && !(<Element>target).classList.contains('day-num')) {
+    if (!this.options.inline && !this.elementRef.nativeElement.contains(e.target) && !(<Element>target).classList.contains('day-num')) {
       this.opened = false;
     }
   }
